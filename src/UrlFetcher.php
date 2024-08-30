@@ -71,7 +71,7 @@ class UrlFetcher
 	 *
 	 * @return FetchResult[]
 	 */
-	private function processUrls(Dictionary $urls, $depth)
+	private function processUrls(Dictionary $urls, $depth): array
 	{
 		/**
 		 * @var string $sUrl
@@ -106,7 +106,7 @@ class UrlFetcher
 	 *
 	 * @return FetchResult
 	 */
-	public function directFetch(Url $url)
+	public function directFetch(Url $url): FetchResult
 	{
 		$request = new FetchRequest($url);
 		$result  = $this->fetchResult($request);
@@ -120,10 +120,10 @@ class UrlFetcher
 
 	/**
 	 * @param FetchRequest $fetchRequest
-	 *
+	 * @param int $depth
 	 * @return FetchResult
 	 */
-	private function fetchResult(FetchRequest $fetchRequest, $depth)
+	private function fetchResult(FetchRequest $fetchRequest, int $depth): FetchResult
 	{
 		$request  = null;
 		$response = $this->getCachedResponse($fetchRequest);
