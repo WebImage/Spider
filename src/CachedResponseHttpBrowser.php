@@ -2,10 +2,11 @@
 
 namespace WebImage\Spider;
 
+use Symfon\Component\HttpClient\HttpClient;
 use Symfony\Component\BrowserKit\Response;
 use Symfony\Component\BrowserKit\HttpBrowser;
 
-class CachedResponseClient extends HttpBrowser
+class CachedResponseHttpBrowser extends HttpBrowser
 {
 	private ?string $responseCacheFile;
 	private ?int    $maxCacheAge;

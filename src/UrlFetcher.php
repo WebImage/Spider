@@ -2,26 +2,24 @@
 
 namespace WebImage\Spider;
 
+use InvalidArgumentException;
 use Monolog\Logger;
 use Symfony\Component\BrowserKit\Request;
 use Symfony\Component\BrowserKit\Response;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 use WebImage\Spider\FetchRequest;
 use WebImage\String\Url;
 use WebImage\Core\Dictionary;
 
-//class UrlFetcher {} fetch()
-//class PluggableUrlFetcher {}
-// $fetcher->que
-
-
 class UrlFetcher
 {
 	/** @var Logger */
-	private Logger                $log;
-	private string                $cacheDir;
-	private ?CachedResponseClient $client = null;
-	/** @var Dictionary<sUrl, UrlFetchStatus> */
+	private Logger                     $log;
+	private string                     $cacheDir;
+	private ?CachedResponseHttpBrowser $httpBrowser = null;
+	/** @var Dictionary|array<string, FetchRequest> */
 	private Dictionary $urls;
 	/**
 	 * @var FetchHandlerInterface[]
@@ -30,11 +28,17 @@ class UrlFetcher
 
 //	private $onFinishedHandlers = [];
 
-	public function __construct(string $cacheDir, Logger $log)
+	/**
+	 * @param string $cacheDir
+	 * @param Logger $log
+	 * @param HttpClientInterface|null $client
+	 */
+	public function __construct(string $cacheDir, Logger $log, HttpClientInterface $client = null)
 	{
-		$this->cacheDir = rtrim($cacheDir, '/');
-		$this->log      = $log;
-		$this->urls     = new Dictionary();
+		$this->cacheDir    = rtrim($cacheDir, '/');
+		$this->log         = $log;
+		$this->urls        = new Dictionary();
+		$this->httpBrowser = $this->createHttpBrowser($client);
 	}
 
 	/**
@@ -103,15 +107,15 @@ class UrlFetcher
 	/**
 	 * Allows a URL to be fetched without processing the request through handlers
 	 * @param Url $url
-	 *
+	 * @param bool $cacheResponse
 	 * @return FetchResult
 	 */
-	public function directFetch(Url $url): FetchResult
+	public function directFetch(Url $url, bool $cacheResponse = true): FetchResult
 	{
 		$request = new FetchRequest($url);
 		$result  = $this->fetchResult($request);
 
-		if (!$result->isCached() && $result->isCacheable()) {
+		if ($cacheResponse && !$result->isCached() && $result->isCacheable()) {
 			$this->cacheRequest($request, $result->getResponse());
 		}
 
@@ -123,7 +127,7 @@ class UrlFetcher
 	 * @param int $depth
 	 * @return FetchResult
 	 */
-	private function fetchResult(FetchRequest $fetchRequest, int $depth): FetchResult
+	private function fetchResult(FetchRequest $fetchRequest, int $depth = 1): FetchResult
 	{
 		$request  = null;
 		$response = $this->getCachedResponse($fetchRequest);
@@ -131,9 +135,9 @@ class UrlFetcher
 		$isCached = false;
 
 		if (null === $response) {
-			$this->getClient()->request('GET', (string)$fetchRequest->getUrl());
+			$this->getHttpBrowser()->request('GET', (string)$fetchRequest->getUrl());
 
-			$client   = $this->getClient();
+			$client   = $this->getHttpBrowser();
 			$request  = $client->getRequest();
 			$response = $client->getResponse();
 			$crawler  = $client->getCrawler();
@@ -153,7 +157,7 @@ class UrlFetcher
 	 *
 	 * @return Request
 	 */
-	private function createRequest(FetchRequest $request)
+	private function createRequest(FetchRequest $request): Request
 	{
 		return new Request($request->getUrl(), 'GET');
 	}
@@ -163,7 +167,7 @@ class UrlFetcher
 	 *
 	 * @return Crawler
 	 */
-	private function createCrawlerFromResponse(Response $response)
+	private function createCrawlerFromResponse(Response $response): Crawler
 	{
 		$crawler = new Crawler();
 		$crawler->addContent($response->getContent());
@@ -192,15 +196,24 @@ class UrlFetcher
 		return unserialize(file_get_contents($cacheFile));
 	}
 
-	public function onContent($handler)
+	/**
+	 * A callback that is called each time a result is fetched
+	 * @param FetchHandlerInterface $handler
+	 * @return void
+	 */
+	public function onFetch(FetchHandlerInterface $handler): void
 	{
-		if (is_callable($handler)) $handler = new FetchFunctionHandler($handler);
-
-		if (!($handler instanceof FetchHandlerInterface)) {
-			throw new \InvalidArgumentException(sprintf('Fetch handler must implement: %s', FetchHandlerInterface::class));
-		}
-
 		$this->onFetchHandlers[] = $handler;
+	}
+
+	/**
+	 * Allows callables to be used as onFetch handlers
+	 * @param callable $callback
+	 * @return void
+	 */
+	public function onFetchCallback(callable $callback): void
+	{
+		$this->onFetch(new FetchFunctionHandler($callback));
 	}
 
 	/**
@@ -234,38 +247,51 @@ class UrlFetcher
 	}
 
 	/**
-	 * @return CachedResponseClient
+	 * @return CachedResponseHttpBrowser
 	 */
-	private function getClient(): CachedResponseClient
+	private function getHttpBrowser(): CachedResponseHttpBrowser
 	{
-		if (null === $this->client) {
-			$client = new CachedResponseClient();
-			$client->followRedirects();
+		return $this->httpBrowser;
+	}
 
-			$guzzleClient = new \GuzzleHttp\Client(array(
-													   'curl' => array(
-														   CURLOPT_SSL_VERIFYHOST => false,
-														   CURLOPT_SSL_VERIFYPEER => false,
-													   ),
-												   ));
-			$client->setClient($guzzleClient);
-			$client->setHeader('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36');
-			$this->client = $client;
-		}
+	/**
+	 * Create the browser that will be used to fetch content
+	 * @param HttpClientInterface|null $client
+	 * @return CachedResponseHttpBrowser
+	 */
+	private function createHttpBrowser(?HttpClientInterface $client): CachedResponseHttpBrowser
+	{
+		$this->httpBrowser = new CachedResponseHttpBrowser($client ?? $this->createDefaultClient());
+		$this->httpBrowser->followRedirects();
 
-		return $this->client;
+		return $this->httpBrowser;
+	}
+
+	/**
+	 * Create an HttpClient that can be used by the HttpBrowser
+	 * @return HttpClientInterface
+	 */
+	private function createDefaultClient(): HttpClientInterface
+	{
+		return HttpClient::create([
+									  'verify_peer' => false,
+									  'verify_host' => false,
+									  'headers'     => [
+										  'User-Agent' => 'UrlFetcher'
+									  ]
+								  ]);
 	}
 
 	/**
 	 * Push a URL onto the stack to be crawled
 	 * @param Url $url
 	 * @param integer $depth
-	 * @throws \InvalidArgumentException
+	 * @throws InvalidArgumentException
 	 */
-	public function pushUrl(Url $url, $depth = 1)
+	public function pushUrl(Url $url, int $depth = 1)
 	{
 		if (!is_numeric($depth)) {
-			throw new \InvalidArgumentException('Depth should be numeric');
+			throw new InvalidArgumentException('Depth should be numeric');
 		}
 
 		if ($this->urls->has((string)$url)) return;
@@ -278,7 +304,7 @@ class UrlFetcher
 	/**
 	 * @return Dictionary<string url, UrlFetchStatus> Urls that have not yet been visited
 	 */
-	function getPendingUrls(): Dictionary
+	private function getPendingUrls(): Dictionary
 	{
 		$return = new Dictionary();
 		/**
@@ -294,7 +320,12 @@ class UrlFetcher
 		return $return;
 	}
 
-	function checkIfCrawlable($uri): bool
+	/**
+	 * Check if a URL contains any patterns that are not crawlable, e.g. javascript, mailto, etc.
+	 * @param string $uri
+	 * @return bool
+	 */
+	private function checkIfCrawlable(string $uri): bool
 	{
 		if (empty($uri) === true) {
 			return false;
@@ -317,13 +348,23 @@ class UrlFetcher
 		return true;
 	}
 
-	function isExternal($url, $base_url): bool
+	/**
+	 * Check if a URL is external to the provided $baseUrl
+	 * @param string $url
+	 * @param string $baseUrl
+	 * @return bool
+	 */
+	private function isExternal(string $url, string $baseUrl): bool
 	{
-		$base_url_trimmed = str_replace(array('http://', 'https://'), '', $base_url);
+		$base_url_trimmed = preg_replace('#https?://#', '', $baseUrl);
 
 		return preg_match("@^http(s)?\://$base_url_trimmed@", $url) == false;
 	}
 
+	/**
+	 * @param Url $url
+	 * @return string
+	 */
 	private function getDomainCacheDir(Url $url): string
 	{
 		$dir = $this->cacheDir . '/' . $this->getDomainCacheKey($url);
@@ -335,12 +376,22 @@ class UrlFetcher
 		return $dir;
 	}
 
-	private function getDomainCacheKey(Url $url)
+	/**
+	 * Create a cache key that can be used to cache the URL domain
+	 * @param Url $url
+	 * @return string
+	 */
+	private function getDomainCacheKey(Url $url): string
 	{
 		$cacheKey = $url->getHost();
 		return preg_replace('/[^a-zA-Z0-9\-]+/', '_', $cacheKey);
 	}
 
+	/**
+	 * Get a filename that can be used for caching a URL
+	 * @param \WebImage\Spider\FetchRequest $fetchRequest
+	 * @return string
+	 */
 	private function getCacheFile(FetchRequest $fetchRequest): string
 	{
 		$path_parts = explode('/', $fetchRequest->getUrl()->getPath());
@@ -368,7 +419,13 @@ class UrlFetcher
 		return $download_directory . '/' . $page_name;
 	}
 
-	private function cacheRequest(FetchRequest $request, Response $response)
+	/**
+	 * Cache a request
+	 * @param \WebImage\Spider\FetchRequest $request
+	 * @param Response $response
+	 * @return void
+	 */
+	private function cacheRequest(FetchRequest $request, Response $response): void
 	{
 		$cacheFile = $this->getCacheFile($request);
 
