@@ -3,8 +3,6 @@
 namespace WebImage\Spider;
 
 use Monolog\Logger;
-use Goutte\Client as GoutteClient;
-use Guzzle\Http\Exception\CurlException;
 use Symfony\Component\BrowserKit\Request;
 use Symfony\Component\BrowserKit\Response;
 use Symfony\Component\DomCrawler\Crawler;
@@ -20,9 +18,9 @@ use WebImage\Core\Dictionary;
 class UrlFetcher
 {
 	/** @var Logger */
-	private Logger $log;
-	private string $cacheDir;
-	private        $client;
+	private Logger                $log;
+	private string                $cacheDir;
+	private ?CachedResponseClient $client = null;
 	/** @var Dictionary<sUrl, UrlFetchStatus> */
 	private Dictionary $urls;
 	/**
@@ -238,7 +236,7 @@ class UrlFetcher
 	/**
 	 * @return CachedResponseClient
 	 */
-	private function getClient()
+	private function getClient(): CachedResponseClient
 	{
 		if (null === $this->client) {
 			$client = new CachedResponseClient();

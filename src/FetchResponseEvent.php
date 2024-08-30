@@ -2,7 +2,6 @@
 
 namespace WebImage\Spider;
 
-use Goutte\Client;
 use Symfony\Component\BrowserKit\Request;
 use Symfony\Component\BrowserKit\Response;
 use Symfony\Component\DomCrawler\Crawler;
