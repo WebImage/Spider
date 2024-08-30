@@ -9,7 +9,7 @@ interface LoggableInterface
 	/**
 	 * @return Logger
 	 */
-	public function getLog();
+	public function getLog(): Logger;
 
 	/**
 	 * @param Logger $logger

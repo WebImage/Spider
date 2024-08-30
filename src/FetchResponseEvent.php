@@ -8,15 +8,17 @@ use Symfony\Component\BrowserKit\Response;
 use Symfony\Component\DomCrawler\Crawler;
 use WebImage\String\Url;
 
-class FetchResponseEvent {
+class FetchResponseEvent
+{
 	/**
 	 * @var UrlFetcher
 	 */
-	private $target;
+	private UrlFetcher $target;
 	/**
 	 * @var FetchResult
 	 */
-	private $result;
+	private FetchResult $result;
+
 	/**
 	 * FetchEvent constructor.
 	 *
@@ -32,7 +34,7 @@ class FetchResponseEvent {
 	/**
 	 * @return UrlFetcher
 	 */
-	public function getTarget()
+	public function getTarget(): UrlFetcher
 	{
 		return $this->target;
 	}
@@ -40,7 +42,7 @@ class FetchResponseEvent {
 	/**
 	 * @return FetchResult
 	 */
-	public function getResult()
+	public function getResult(): FetchResult
 	{
 		return $this->result;
 	}

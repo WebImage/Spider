@@ -14,8 +14,8 @@ class ErrorResponseHandler implements FetchHandlerInterface, LoggableInterface
 	public function handleResponse(FetchResponseEvent $ev)
 	{
 		$response = $ev->getResult()->getResponse();
-		if ($response->getStatus() >= 400) {
-			$this->getLog()->info('Bad Status: ' . $response->getStatus() . '; ' . $ev->getUrl());
+		if ($response->getStatusCode() >= 400) {
+			$this->getLog()->info('Bad Status: ' . $response->getStatusCode() . '; ' . $ev->getUrl());
 		}
 	}
 }

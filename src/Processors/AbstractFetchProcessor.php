@@ -2,10 +2,11 @@
 
 namespace WebImage\Spider\Processors;
 
-use WebImage\Spider\FetchFinishedEvent;
+//use WebImage\Spider\FetchFinishedEvent;
 use WebImage\Spider\FetchResponseEvent;
 use WebImage\Spider\FetchHandlerInterface;
-use WebImage\Spider\FetchStartEvent;
+
+//use WebImage\Spider\FetchStartEvent;
 
 abstract class AbstractFetchProcessor implements FetchHandlerInterface
 {

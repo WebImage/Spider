@@ -17,24 +17,26 @@ use WebImage\Core\Dictionary;
 // $fetcher->que
 
 
-class UrlFetcher {
+class UrlFetcher
+{
 	/** @var Logger */
-	private $log;
-	private $cacheDir;
-	private $client;
+	private Logger $log;
+	private string $cacheDir;
+	private        $client;
 	/** @var Dictionary<sUrl, UrlFetchStatus> */
-	private $urls;
+	private Dictionary $urls;
 	/**
 	 * @var FetchHandlerInterface[]
 	 */
-	private $onFetchHandlers = [];
+	private array $onFetchHandlers = [];
+
 //	private $onFinishedHandlers = [];
 
-	public function __construct($cacheDir, Logger $log)
+	public function __construct(string $cacheDir, Logger $log)
 	{
 		$this->cacheDir = rtrim($cacheDir, '/');
-		$this->log = $log;
-		$this->urls = new Dictionary();
+		$this->log      = $log;
+		$this->urls     = new Dictionary();
 	}
 
 	/**
@@ -42,7 +44,7 @@ class UrlFetcher {
 	 *
 	 * @return null|FetchResult
 	 */
-	public function fetch(Url $url)
+	public function fetch(Url $url): ?FetchResult
 	{
 		$this->pushUrl($url);
 
@@ -51,9 +53,8 @@ class UrlFetcher {
 
 		$response = null;
 
-		while (count($urls = $this->getPendingUrls()) > 0)
-		{
-			$depth ++;
+		while (count($urls = $this->getPendingUrls()) > 0) {
+			$depth++;
 			$this->log->info(sprintf('Round #%s - Scanning: %s', number_format($depth), number_format(count($urls))));
 			$results = $this->processUrls($urls, $depth);
 
@@ -79,8 +80,7 @@ class UrlFetcher {
 		 * @var FetchRequest $fetchRequest
 		 **/
 		$results = [];
-		foreach($urls as $sUrl => $fetchRequest)
-		{
+		foreach ($urls as $sUrl => $fetchRequest) {
 			$result = $this->fetchResult($fetchRequest, $depth);
 
 			$this->dispatchOnFetchHandlers($result);
@@ -90,7 +90,7 @@ class UrlFetcher {
 				$this->cacheRequest($fetchRequest, $result->getResponse());
 			}
 
-			$urlCacheDir = $this->getDomainCacheDir($fetchRequest->getUrl());
+			$urlCacheDir  = $this->getDomainCacheDir($fetchRequest->getUrl());
 			$urlCacheFile = $urlCacheDir . '/urls.cache';
 			file_put_contents($urlCacheFile, serialize($this->urls));
 
@@ -111,7 +111,7 @@ class UrlFetcher {
 	public function directFetch(Url $url)
 	{
 		$request = new FetchRequest($url);
-		$result = $this->fetchResult($request);
+		$result  = $this->fetchResult($request);
 
 		if (!$result->isCached() && $result->isCacheable()) {
 			$this->cacheRequest($request, $result->getResponse());
@@ -127,25 +127,25 @@ class UrlFetcher {
 	 */
 	private function fetchResult(FetchRequest $fetchRequest, $depth)
 	{
-		$request = null;
+		$request  = null;
 		$response = $this->getCachedResponse($fetchRequest);
-		$crawler = null;
+		$crawler  = null;
 		$isCached = false;
 
 		if (null === $response) {
 			$this->getClient()->request('GET', (string)$fetchRequest->getUrl());
 
-			$client = $this->getClient();
-			$request = $client->getRequest();
+			$client   = $this->getClient();
+			$request  = $client->getRequest();
 			$response = $client->getResponse();
-			$crawler = $client->getCrawler();
+			$crawler  = $client->getCrawler();
 		} else {
-			$request = $this->createRequest($fetchRequest);
-			$crawler = $this->createCrawlerFromResponse($response);
+			$request  = $this->createRequest($fetchRequest);
+			$crawler  = $this->createCrawlerFromResponse($response);
 			$isCached = true;
 		}
 
-		$this->log->info('GET ' . $request->getUri() . ' ' . $response->getStatus() . ($isCached ?' (Cached)':''));
+		$this->log->info('GET ' . $request->getUri() . ' ' . $response->getStatus() . ($isCached ? ' (Cached)' : ''));
 
 		return new FetchResult($request, $response, $crawler, $isCached, $depth);
 	}
@@ -182,7 +182,7 @@ class UrlFetcher {
 	 */
 	private function getCachedResponse(FetchRequest $request)
 	{
-		$cacheFile = $this->getCacheFile($request);
+		$cacheFile   = $this->getCacheFile($request);
 		$maxCacheAge = 0;
 
 		if (null === $cacheFile || !file_exists($cacheFile)) return;
@@ -210,11 +210,11 @@ class UrlFetcher {
 	 */
 	private function dispatchOnFetchHandlers(FetchResult $result)
 	{
-		$ev = new FetchResponseEvent($this, $result);
+		$ev                = new FetchResponseEvent($this, $result);
 		$linkCacheDisabled = false;
 
 		/** @var FetchHandlerInterface $handler */
-		foreach($this->onFetchHandlers as $handler) {
+		foreach ($this->onFetchHandlers as $handler) {
 			if ($handler instanceof LoggableInterface) $handler->setLog($this->log);
 			$handler->handleResponse($ev);
 			$this->logIfHandlerDisabledCaching($handler, $linkCacheDisabled, $result);
@@ -245,11 +245,11 @@ class UrlFetcher {
 			$client->followRedirects();
 
 			$guzzleClient = new \GuzzleHttp\Client(array(
-				'curl' => array(
-					CURLOPT_SSL_VERIFYHOST => false,
-					CURLOPT_SSL_VERIFYPEER => false,
-				),
-			));
+													   'curl' => array(
+														   CURLOPT_SSL_VERIFYHOST => false,
+														   CURLOPT_SSL_VERIFYPEER => false,
+													   ),
+												   ));
 			$client->setClient($guzzleClient);
 			$client->setHeader('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.109 Safari/537.36');
 			$this->client = $client;
@@ -264,7 +264,7 @@ class UrlFetcher {
 	 * @param integer $depth
 	 * @throws \InvalidArgumentException
 	 */
-	public function pushUrl(Url $url, $depth=1)
+	public function pushUrl(Url $url, $depth = 1)
 	{
 		if (!is_numeric($depth)) {
 			throw new \InvalidArgumentException('Depth should be numeric');
@@ -280,24 +280,23 @@ class UrlFetcher {
 	/**
 	 * @return Dictionary<string url, UrlFetchStatus> Urls that have not yet been visited
 	 */
-	function getPendingUrls()
+	function getPendingUrls(): Dictionary
 	{
 		$return = new Dictionary();
 		/**
 		 * @var string $url
 		 * @var FetchRequest $status
 		 */
-		foreach($this->urls as $url => $status)
-		{
-			if (false === $status->visited())
-			{
+		foreach ($this->urls as $url => $status) {
+			if (false === $status->visited()) {
 				$return->set($url, $status);
 			}
 		}
+
 		return $return;
 	}
 
-	function checkIfCrawlable($uri)
+	function checkIfCrawlable($uri): bool
 	{
 		if (empty($uri) === true) {
 			return false;
@@ -311,8 +310,8 @@ class UrlFetcher {
 			'@^fax\:.*@i',
 		);
 
-		foreach ($stop_links as $ptrn) {
-			if (preg_match($ptrn, $uri) == true) {
+		foreach ($stop_links as $pattern) {
+			if (preg_match($pattern, $uri)) {
 				return false;
 			}
 		}
@@ -320,14 +319,14 @@ class UrlFetcher {
 		return true;
 	}
 
-	function isExternal($url, $base_url)
+	function isExternal($url, $base_url): bool
 	{
 		$base_url_trimmed = str_replace(array('http://', 'https://'), '', $base_url);
 
 		return preg_match("@^http(s)?\://$base_url_trimmed@", $url) == false;
 	}
 
-	private function getDomainCacheDir(Url $url)
+	private function getDomainCacheDir(Url $url): string
 	{
 		$dir = $this->cacheDir . '/' . $this->getDomainCacheKey($url);
 		if (!file_exists($dir)) {
@@ -341,16 +340,14 @@ class UrlFetcher {
 	private function getDomainCacheKey(Url $url)
 	{
 		$cacheKey = $url->getHost();
-		$cacheKey = preg_replace('/[^a-zA-Z0-9\-]+/', '_', $cacheKey);
-
-		return $cacheKey;
+		return preg_replace('/[^a-zA-Z0-9\-]+/', '_', $cacheKey);
 	}
 
-	private function getCacheFile(FetchRequest $fetchRequest)
+	private function getCacheFile(FetchRequest $fetchRequest): string
 	{
 		$path_parts = explode('/', $fetchRequest->getUrl()->getPath());
 
-		$page_part = $path_parts[count($path_parts)-1];
+		$page_part = $path_parts[count($path_parts) - 1];
 
 		// If the page does not explicitly have an extension, then treat this path like a directory
 		$page_name = null;
@@ -361,7 +358,7 @@ class UrlFetcher {
 		}
 
 		// @TODO Add query string to cache file string
-		$dir = $this->getDomainCacheDir($fetchRequest->getUrl());
+		$dir                = $this->getDomainCacheDir($fetchRequest->getUrl());
 		$download_directory = $dir . implode('/', $path_parts);
 
 		if (!file_exists($download_directory)) {

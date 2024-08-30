@@ -4,7 +4,7 @@ namespace WebImage\Spider;
 
 class FetchFunctionHandler implements FetchHandlerInterface
 {
-	/** @var callable $handler*/
+	/** @var callable $handler */
 	private $handler;
 
 	/**
@@ -12,7 +12,8 @@ class FetchFunctionHandler implements FetchHandlerInterface
 	 *
 	 * @param callable $handler
 	 */
-	public function __construct(callable $handler) {
+	public function __construct(callable $handler)
+	{
 		$this->handler = $handler;
 	}
 

@@ -12,45 +12,50 @@ class FetchResult
 	/**
 	 * @var Request
 	 */
-	private $request;
+	private Request $request;
 	/**
 	 * @var Response
 	 */
-	private $response;
+	private Response $response;
 	/**
 	 * @var Crawler
 	 */
-	private $crawler;
+	private Crawler $crawler;
 	/**
 	 * @var bool
 	 */
-	private $isCached = false;
+	private bool $isCached = false;
 	/**
 	 * @var bool
 	 */
-	private $isCacheable = true;
+	private bool $isCacheable = true;
 	/**
 	 * @var int
 	 */
-	private $depth = 1;
+	private int $depth = 1;
+
 	/**
 	 * FetchResponse constructor.
 	 *
+	 * @param Request $request
 	 * @param Response $response
+	 * @param Crawler $crawler
+	 * @param bool $isCached
+	 * @param int $depth
 	 */
-	public function __construct(Request $request, Response $response, Crawler $crawler, $isCached=false, $depth=1)
+	public function __construct(Request $request, Response $response, Crawler $crawler, bool $isCached = false, int $depth = 1)
 	{
-		$this->request = $request;
+		$this->request  = $request;
 		$this->response = $response;
-		$this->crawler = $crawler;
+		$this->crawler  = $crawler;
 		$this->isCached = $isCached;
-		$this->depth = intval($depth);
+		$this->depth    = intval($depth);
 	}
 
 	/**
 	 * @return Request
 	 */
-	public function getRequest()
+	public function getRequest(): Request
 	{
 		return $this->request;
 	}
@@ -58,7 +63,7 @@ class FetchResult
 	/**
 	 * @return Response
 	 */
-	public function getResponse()
+	public function getResponse(): Response
 	{
 		return $this->response;
 	}
@@ -66,12 +71,12 @@ class FetchResult
 	/**
 	 * @return Crawler
 	 */
-	public function getCrawler()
+	public function getCrawler(): Crawler
 	{
 		return $this->crawler;
 	}
 
-	public function isCached()
+	public function isCached(): bool
 	{
 		return $this->isCached;
 	}
@@ -79,20 +84,18 @@ class FetchResult
 	/**
 	 * @return int
 	 */
-	public function getDepth()
+	public function getDepth(): int
 	{
 		return $this->depth;
 	}
 
-	public function isCacheable($true_false=null) {
-		if (null !== $true_false && !is_bool($true_false)) {
-			throw new \InvalidArgumentException(__METHOD__ . ' was expecting a boolean');
-		}
+	public function isCacheable(): bool
+	{
+		return $this->isCacheable;
+	}
 
-		if (null === $true_false) {
-			return $this->isCacheable;
-		} else if (is_bool($true_false)) {
-			$this->isCacheable = $true_false;
-		}
+	public function setCacheable(bool $isCacheable): void
+	{
+		$this->isCacheable = $isCacheable;
 	}
 }

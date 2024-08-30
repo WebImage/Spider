@@ -13,29 +13,32 @@ class InvalidMimeForExtensions implements FetchHandlerInterface, LoggableInterfa
 {
 	use LoggableTrait;
 
-	private $extMimeTypeMap;
+	private Dictionary $extMimeTypeMap;
 
-	public function __construct(array $extensions=null)
+	public function __construct(array $extensions = null)
 	{
 		$this->extMimeTypeMap = new Dictionary();
 		$this->addExtensions($extensions === null ? $this->getDefaultExtensions() : $extensions);
 	}
 
-	protected function getDefaultExtensions()
+	/**
+	 * @return array<string,string>
+	 */
+	protected function getDefaultExtensions(): array
 	{
 		return [
-			'jpg' => 'image/jpeg',
+			'jpg'  => 'image/jpeg',
 			'jpeg' => 'image/jpeg',
-			'gif' => 'image/gif',
-			'png' => 'image/png',
-			'pdf' => 'application/pdf'
+			'gif'  => 'image/gif',
+			'png'  => 'image/png',
+			'pdf'  => 'application/pdf'
 		];
 	}
 
 	public function handleResponse(FetchResponseEvent $ev)
 	{
 		$response = $ev->getResult()->getResponse();
-		$status = $response->getStatus();
+		$status   = $response->getStatusCode();
 		if ($status >= 400) return; // Ensure that we are only testing for "valid" responses
 
 		$mime_type = $this->normalizeContentType($response->getHeader('Content-Type'));
@@ -44,33 +47,32 @@ class InvalidMimeForExtensions implements FetchHandlerInterface, LoggableInterfa
 		if (null !== $extension) {
 			$expected_mime_types = $this->extMimeTypeMap[$extension];
 			if (!in_array($mime_type, $expected_mime_types)) {
-				$this->getLog()->info('Invalid Content-Type (' . $mime_type . ') for ' . $ev->getResult()->getRequest()->getUri(). '.');
-				$ev->getResult()->isCacheable(false);
+				$this->getLog()->info('Invalid Content-Type (' . $mime_type . ') for ' . $ev->getResult()->getRequest()->getUri() . '.');
+//				$ev->getResult()->isCacheable(false);
 			}
 		}
 	}
 
-	private function normalizeContentType($content_type)
+	private function normalizeContentType(string $content_type)
 	{
 		$parts = explode(';', $content_type);
-		$content_type = array_shift($parts);
-
-		return $content_type;
+		return array_shift($parts);
 	}
 
 	/**
 	 * @param Url $url
 	 * @return string|null Extension, if found, otherwise null
 	 */
-	private function getExtensionFromUrl(Url $url)
+	private function getExtensionFromUrl(Url $url): ?string
 	{
 		$path = $url->getPath();
-		foreach($this->extMimeTypeMap as $ext => $mimeType) {
-			$test_ext = substr($path, -(strlen($ext)+1));
+		foreach ($this->extMimeTypeMap as $ext => $mimeType) {
+			$test_ext = substr($path, -(strlen($ext) + 1));
 			if ($test_ext == '.' . $ext) {
 				return $ext;
 			}
 		}
+		return null;
 	}
 
 	/**
@@ -79,7 +81,7 @@ class InvalidMimeForExtensions implements FetchHandlerInterface, LoggableInterfa
 	 */
 	public function addExtensions(array $extensions)
 	{
-		foreach($extensions as $supported_extensions => $mime_type) {
+		foreach ($extensions as $supported_extensions => $mime_type) {
 			$this->addExtension($supported_extensions, $mime_type);
 		}
 	}
@@ -94,7 +96,7 @@ class InvalidMimeForExtensions implements FetchHandlerInterface, LoggableInterfa
 		if (!is_array($extensions)) $extensions = [$extensions];
 		if (!is_array($mime_types)) $mime_types = [$mime_types];
 
-		foreach($extensions as $extension) {
+		foreach ($extensions as $extension) {
 			$this->extMimeTypeMap->set($extension, $mime_types);
 		}
 	}

@@ -9,34 +9,34 @@ class FetchRequest
 	/**
 	 * @var Url
 	 */
-	private $url;
+	private Url $url;
 	/**
 	 * @var bool
 	 */
-	private $visited = false;
+	private bool $visited = false;
 
 	/** @var int The depth into a crawl that this URL was found */
-	private $depth = 1;
+	private int $depth = 1;
 	/**
 	 * @var string
 	 */
-	private $error;
+	private string $error;
 
 	/**
 	 * UrlStatus constructor.
 	 *
 	 * @param Url $url
 	 */
-	public function __construct(Url $url, $depth=1)
+	public function __construct(Url $url, int $depth = 1)
 	{
-		$this->url = $url;
+		$this->url   = $url;
 		$this->depth = $depth;
 	}
 
 	/**
 	 * @return int
 	 */
-	public function getDepth()
+	public function getDepth(): int
 	{
 		return $this->depth;
 	}
@@ -44,13 +44,17 @@ class FetchRequest
 	/**
 	 * @return Url
 	 */
-	public function getUrl() { return $this->url; }
+	public function getUrl(): Url
+	{
+		return $this->url;
+	}
 
 	/**
 	 * Getter/setter for visited
 	 * @return bool|void
 	 */
-	public function visited($true_false=null) {
+	public function visited($true_false = null)
+	{
 		if (null !== $true_false) {
 			$this->setVisited($true_false);
 			return;
@@ -63,12 +67,8 @@ class FetchRequest
 	/**
 	 * @param bool $true_false
 	 */
-	public function setVisited($true_false)
+	public function setVisited(bool $true_false)
 	{
-		if (!is_bool($true_false)) {
-			throw new \InvalidArgumentException(__METHOD__ . ' was expecting a boolean');
-		}
-
 		$this->visited = $true_false;
 	}
 }

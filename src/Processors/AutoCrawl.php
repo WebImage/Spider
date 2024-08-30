@@ -4,7 +4,7 @@ namespace WebImage\Spider\Processors;
 
 use Symfony\Component\BrowserKit\Request;
 use Symfony\Component\BrowserKit\Response;
-use Symfony\Component\DomCrawler\Crawler As DomCrawler;
+use Symfony\Component\DomCrawler\Crawler as DomCrawler;
 use Symfony\Component\DomCrawler\Crawler;
 use WebImage\Core\Dictionary;
 use WebImage\Spider\FetchResponseEvent;
@@ -18,7 +18,6 @@ use WebImage\String\Url;
  * Can be used to cause PageFetcher to find all links on
  * the seed URL and recursively crawl the found link pages
  */
-
 class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 {
 	use LoggableTrait;
@@ -26,19 +25,20 @@ class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 	/**
 	 * @var int The maximum depth that the crawler should crawl
 	 */
-	private $maxDepth;
+	private int $maxDepth;
 	/**
 	 * @var bool Whether the crawler should add external domains to the crawl stack
 	 */
-	private $shouldCrawlExternalDomains = false;
+	private bool $shouldCrawlExternalDomains = false;
 
-	public $linkPaths = [];
+	public array $linkPaths = [];
+
 	/**
 	 * AutoCrawl constructor.
 	 *
 	 * @param int $maxDepth
 	 */
-	public function __construct($maxDepth = 3)
+	public function __construct(int $maxDepth = 3)
 	{
 		$this->maxDepth = $maxDepth;
 	}
@@ -46,13 +46,13 @@ class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 	public function handleResponse(FetchResponseEvent $ev)
 	{
 		$result = $ev->getResult();
-		$links = $this->getCrawlableLinks($result->getRequest(), $result->getResponse(), $result->getCrawler());
+		$links  = $this->getCrawlableLinks($result->getRequest(), $result->getResponse(), $result->getCrawler());
 		$this->linkPaths((string)$ev->getResult()->getRequest()->getUri(), $links);
-		foreach($links as $link) {
+		foreach ($links as $link) {
 			if ($result->getDepth() <= $this->maxDepth) {
 				$ev->getTarget()->pushUrl($link);
 			} else {
-				$this->getLog()->info('Not crawling ' . $link . ' ('.$result->getDepth().') because max depth ('. $this->maxDepth . ') reached');
+				$this->getLog()->info('Not crawling ' . $link . ' (' . $result->getDepth() . ') because max depth (' . $this->maxDepth . ') reached');
 			}
 		}
 	}
@@ -64,7 +64,7 @@ class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 	 *
 	 * @return Url[]
 	 */
-	private function getCrawlableLinks(Request $request, Response $response, Crawler $crawler)
+	private function getCrawlableLinks(Request $request, Response $response, Crawler $crawler): array
 	{
 		$url = new Url($request->getUri());
 
@@ -72,7 +72,7 @@ class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 
 		$links = $crawler->filter('a')->each(function (DomCrawler $node, $i) use ($url) {
 			$node_text = trim($node->text());
-			$href = $node->attr('href');
+			$href      = $node->attr('href');
 
 			$href_url = $this->normalizedUrlFromHref($url, $href);
 
@@ -92,22 +92,22 @@ class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 	private function isValidResponse(Response $response)
 	{
 		$content_type = $response->getHeader('Content-Type');
-		$is_html = (false !== strpos($content_type, 'text/html'));
+		$is_html      = (false !== strpos($content_type, 'text/html'));
 
 		return (
-			$response->getStatus() == 200 &&
+			$response->getStatusCode() == 200 &&
 			$is_html
 		);
 	}
 
-	private function normalizedUrlFromHref(Url $current_url, $target_href)
+	private function normalizedUrlFromHref(Url $current_url, $target_href): ?Url
 	{
 		$href = preg_replace('@#.*$@', '', $target_href); // remove HASH
-		if (empty($href) || !$this->isLinkCrawlable($href)) return;
+		if (empty($href) || !$this->isLinkCrawlable($href)) return null;
 
 		$url = new Url($href);
 
-		$path = $url->getPath();
+		$path      = $url->getPath();
 		$link_type = 'Unknown';
 
 		// Ensure path is set to something
@@ -127,7 +127,7 @@ class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 				if (empty($last_part)) array_pop($parts);
 
 				$parts[] = $path;
-				$path = implode('/', $parts);
+				$path    = implode('/', $parts);
 
 				$link_type = 'Relative';
 			}
@@ -135,7 +135,7 @@ class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 
 		$url->setPath($path);
 
-		$link_type = $link_type ?: $url->getHost() == $current_url->getHost() ? 'Absolute' : 'External';
+		$link_type = $link_type ?: ($url->getHost() == $current_url->getHost() ? 'Absolute' : 'External');
 
 		$this->getLog()->debug($current_url . ' - Normalized link: ' . $target_href . ' => ' . $url . ' (' . $link_type . ')');
 
@@ -148,7 +148,7 @@ class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 	 *
 	 * @return bool
 	 */
-	private function isLinkCrawlable($link)
+	private function isLinkCrawlable(string $link): bool
 	{
 		if (empty($link) === true) {
 			return false;
@@ -166,16 +166,16 @@ class AutoCrawl implements FetchHandlerInterface, LoggableInterface
 	 * @param string $url
 	 * @param Url[] $links
 	 */
-	private function linkPaths($url, array $links)
+	private function linkPaths(string $url, array $links)
 	{
 		if (!isset($this->linkPaths[$url])) $this->linkPaths[$url] = [];
 
-		foreach($links as $link) {
+		foreach ($links as $link) {
 			$this->linkPaths[$url][] = (string)$link;
 		}
 	}
 
-	public function getLinkPaths()
+	public function getLinkPaths(): array
 	{
 		return $this->linkPaths;
 	}

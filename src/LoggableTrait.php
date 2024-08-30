@@ -4,12 +4,14 @@ namespace WebImage\Spider;
 
 use Monolog\Logger;
 
-trait LoggableTrait {
-	private $log;
+trait LoggableTrait
+{
+	private Logger $log;
+
 	/**
 	 * @return Logger
 	 */
-	public function getLog()
+	public function getLog(): Logger
 	{
 		return $this->log;
 	}
